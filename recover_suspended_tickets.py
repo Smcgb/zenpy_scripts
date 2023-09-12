@@ -34,27 +34,38 @@ def recover_suspended_tickets():
 
     # Authentication
     auth = (EMAIL + "/token", API_TOKEN)
-
-    # Get the list of suspended tickets
+    
+    # Fetch all suspended ticket IDs
     response = requests.get(API_ENDPOINT + ".json", auth=auth)
     if response.status_code != 200:
         print("Failed to retrieve suspended tickets!")
         return
 
-    tickets = response.json().get("suspended_tickets", [])
-    if not tickets:
+    ticket_ids = [ticket["id"] for ticket in response.json().get("suspended_tickets", [])]
+    if not ticket_ids:
         print("No suspended tickets found.")
         return
+    
+    # Construct the recover_many URL
+    ids_str = ",".join(map(str, ticket_ids))
+    recover_url = f"{API_ENDPOINT}/recover_many?ids={ids_str}"
 
-    # Recover each suspended ticket
-    for ticket in tickets:
-        ticket_id = ticket["id"]
-        recover_response = requests.put(API_ENDPOINT + f"/{ticket_id}/recover.json", auth=auth)
-
-        if recover_response.status_code == 200:
-            print(f"Successfully recovered ticket {ticket_id}")
-        else:
-            print(f"Failed to recover ticket {ticket_id}")
+    # Recover tickets in bulk
+    headers = {
+        "Content-Type": "application/json",
+    }
+    recover_response = requests.put(recover_url, auth=auth, headers=headers)
+    
+    if recover_response.status_code == 200:
+        print(f"Successfully recovered tickets: {ids_str}")
+    else:
+        print(f"Failed to recover tickets: {ids_str}")
+        print(recover_response.text)  # Print the response to debug issues
 
 if __name__ == "__main__":
-    recover_suspended_tickets()
+
+    while True:
+        print("Recovering suspended tickets...")
+        recover_suspended_tickets()
+        print("Sleeping for 2 minutes...")
+        time.sleep(60 * 2)
